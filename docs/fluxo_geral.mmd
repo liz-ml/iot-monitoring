@@ -1,0 +1,17 @@
+flowchart TD
+    A([Início]) --> B[Usuário realiza login]
+    B --> C[Usuário cadastra um sensor virtual]
+    C --> D[Define localização, variável e limite máximo]
+    D --> E[Sistema salva as configurações]
+    E --> F[Sistema consulta periodicamente a API pública]
+    F --> G[Recebe e armazena a medição]
+    G --> H{Medição ultrapassou o limite?}
+
+    H -->|Sim| I[Gera um alerta]
+    I --> J[Disponibiliza alerta no dashboard]
+
+    H -->|Não| K[Registra medição normal]
+
+    J --> L[Aguarda próxima coleta]
+    K --> L
+    L --> F

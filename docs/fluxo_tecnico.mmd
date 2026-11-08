@@ -1,0 +1,69 @@
+sequenceDiagram
+    autonumber
+
+    actor U as Usuário
+    participant F as Frontend
+    participant US as User Service
+    participant SS as Sensor Service
+    participant RMQ as RabbitMQ
+    participant TS as Telemetry Service
+    participant API as Open-Meteo
+    participant AS as Alert Service
+
+    Note over U,US: 1. Autenticação
+
+    U->>F: Realiza login
+    F->>US: Envia credenciais (HTTP)
+    US-->>F: Retorna autenticação
+
+    Note over U,SS: 2. Cadastro do sensor
+
+    U->>F: Cadastra sensor e define limite
+    F->>SS: POST /sensors
+    SS->>SS: Persiste configurações
+    SS-->>F: Confirma cadastro
+
+    Note over SS,AS: 3. Sincronização de configurações
+
+    SS->>RMQ: Publica sensor.created
+
+    par Atualizar Telemetry Service
+        RMQ-->>TS: Entrega sensor.created
+        TS->>TS: Salva sensor na configuração local
+    and Atualizar Alert Service
+        RMQ-->>AS: Entrega sensor.created
+        AS->>AS: Salva limites na configuração local
+    end
+
+    Note over TS,AS: 4. Coleta e processamento
+
+    loop Periodicamente para sensores ativos
+        TS->>API: Consulta dados meteorológicos
+        API-->>TS: Retorna medições
+
+        TS->>TS: Valida e armazena medições
+        TS->>RMQ: Publica telemetry.received
+        RMQ-->>AS: Entrega telemetry.received
+
+        AS->>AS: Verifica limites configurados
+
+        alt Limite ultrapassado
+            AS->>AS: Registra alerta
+        else Medição normal
+            AS->>AS: Não gera alerta
+        end
+    end
+
+    Note over U,TS: 5. Visualização das medições
+
+    U->>F: Acessa dashboard
+    F->>TS: GET /sensors/:id/measurements
+    TS-->>F: Retorna histórico de medições
+    F-->>U: Exibe gráficos e indicadores
+
+    Note over U,AS: 6. Visualização dos alertas
+
+    U->>F: Acessa aba Alertas
+    F->>AS: GET /alerts
+    AS-->>F: Retorna alertas registrados
+    F-->>U: Exibe alertas
